@@ -12,19 +12,6 @@ function resize() {
 window.onresize = resize;
 resize();
 
-function getAngle(obj1, obj2) {
-    var y = (obj1.y - obj2.y);
-    var x = (obj1.x - obj2.x);
-    return Math.atan( x / y );
-}
-
-function dist(obj1, obj2) {
-    return Math.sqrt(Math.pow(obj2.x - obj1.x, 2) - Math.pow(obj2.y - obj1.y, 2));
-}
-function r(a) {
-    // return a;
-    return a * 180 / Math.PI;
-}
 function koch_snowflake(options) {
     var angle = options.angle;
     if (options.level <= 0) {
@@ -44,12 +31,12 @@ function koch_snowflake(options) {
         y: options.coord[1].y - (options.coord[1].y - options.coord[0].y) * (options.child)
     };
     var p4 = {
-        x: p2.x-p1.x,
-        y: p2.y-p1.y
+        x: p2.x - p1.x,
+        y: p2.y - p1.y
     };
     var p3 = {
-            x: p1.x + p4.x * Math.cos(-angle) - p4.y * Math.sin(-angle),
-            y: p1.y + p4.y * Math.cos(-angle) + p4.x * Math.sin(-angle)
+        x: p1.x + p4.x * Math.cos(-angle) - p4.y * Math.sin(-angle),
+        y: p1.y + p4.y * Math.cos(-angle) + p4.x * Math.sin(-angle)
     };
     var level;
     if (options["go crazy"]) {
@@ -101,54 +88,55 @@ function koch_snowflake(options) {
     });
 }
 var glob = {
-    level: 1,
+    level: 5,
     child: 1 / 3,
     angle: Math.PI / 3,
     "go crazy": false,
-    lineWidth: 10
+    lineWidth: 1,
+    timer: true,
+    "max level": 5,
+    "line cap": "round"
 };
+var prev_glob;
 function draw() {
     ctx.clearRect(0, 0, can.width, can.height);
     ctx.lineWidth = glob.lineWidth;
-    ctx.lineCap = "round";
-    ctx.shadowBlur = 10;
+    ctx.lineCap = glob["line cap"];
+    ctx.shadowBlur = 5;
     ctx.shadowColor = "rgba(0,0,0,0.5)";
+    var mw = can.width, mh = can.height;
+    var w = mw - 2 * mw / 3;
+    var tilt = Math.sin(Math.PI / 3);
+    var offset = w * glob.child * Math.sin(glob.angle) / 2;
+    var hs = mh / 2 - tilt * w / 2 + offset;
+    var p1 = {
+        x: can.width / 3,
+        y: hs
+    };
+    var p2 = {
+        x: can.width - can.width / 3,
+        y: hs
+    };
+    var p3 = {
+        x: can.width / 2,
+        y: can.height / 2 + tilt * w / 2 + offset
+    };
     koch_snowflake({
-        coord: [{
-                x: can.width / 3,
-                y: can.height / 3
-            },
-            {
-                x: can.width - can.width / 3,
-                y: can.height / 3
-            }
-        ],
-        level: glob.level,
-        child: glob.child,
-        angle: glob.angle,
-        "go crazy":glob["go crazy"]
-    });
-    koch_snowflake({
-        coord: [{
-            x: can.width / 2,
-            y: can.height - can.height / 6
-        }, {
-            x: can.width / 3,
-            y: can.height / 3
-        }],
+        coord: [p1, p2],
         level: glob.level,
         child: glob.child,
         angle: glob.angle,
         "go crazy": glob["go crazy"]
     });
     koch_snowflake({
-        coord: [{
-            x: can.width - can.width / 3,
-            y: can.height / 3
-        }, {
-            x: can.width / 2,
-            y: can.height - can.height / 6
-        }],
+        coord: [p3, p1],
+        level: glob.level,
+        child: glob.child,
+        angle: glob.angle,
+        "go crazy": glob["go crazy"]
+    });
+    koch_snowflake({
+        coord: [p2, p3],
         level: glob.level,
         child: glob.child,
         angle: glob.angle,
@@ -157,8 +145,29 @@ function draw() {
     ctx.closePath();
 }
 draw();
-var level = 7;
+function gui() {
+    var g = new dat.GUI();
+    g.add(glob, "level", 0, 8).step(1).listen();
+    g.add(glob, "max level", 0, 8).step(1).listen();
+    g.add(glob, "lineWidth", 1, 50).step(1);
+    g.add(glob, "go crazy");
+    g.add(glob, "timer");
+    g.add(glob, "line cap", { round: "round", butt: "butt" });
+}
+gui();
+function dloop() {
+    if (!glob.timer) {
+        if (JSON.stringify(prev_glob) != JSON.stringify(glob)) {
+            prev_glob = Object.assign({}, glob);
+            draw();
+        }
+    }
+    requestAnimationFrame(dloop);
+}
+dloop();
 setInterval(function () {
-    glob.level = ++glob.level % level;
-    draw();
-},1000);
+    if (glob.timer) {
+        glob.level = ++glob.level % (glob["max level"] + 1);
+        draw();
+    }
+}, 1000);
